@@ -1,0 +1,2177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Ursina TCP Deathmatch — Multiplayer over Tailscale Guide</title>
+	<meta name="description" content="Complete guide, zero-config setup, and Tailscale download links to play Ursina TCP Deathmatch over an encrypted peer-to-peer mesh network without port forwarding.">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+	
+	<style>
+		:root {
+			--bg-base: #07090e;
+			--bg-surface: #0e131f;
+			--bg-card: rgba(17, 24, 39, 0.7);
+			--bg-card-hover: rgba(26, 36, 58, 0.85);
+			--border-subtle: rgba(255, 255, 255, 0.08);
+			--border-glow: rgba(0, 240, 255, 0.3);
+			--cyan: #00f0ff;
+			--cyan-dim: rgba(0, 240, 255, 0.15);
+			--emerald: #10b981;
+			--emerald-glow: rgba(16, 185, 129, 0.2);
+			--purple: #8b5cf6;
+			--purple-glow: rgba(139, 92, 246, 0.25);
+			--crimson: #ff3366;
+			--crimson-glow: rgba(255, 51, 102, 0.2);
+			--amber: #f59e0b;
+			--text-main: #f3f4f6;
+			--text-muted: #9ca3af;
+			--text-dim: #6b7280;
+			--radius-sm: 8px;
+			--radius-md: 14px;
+			--radius-lg: 20px;
+			--radius-xl: 28px;
+			--font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+			--font-display: 'Outfit', sans-serif;
+			--font-mono: 'JetBrains Mono', Consolas, monospace;
+			--shadow-card: 0 10px 35px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+			--shadow-glow: 0 0 40px -10px rgba(0, 240, 255, 0.25);
+		}
+
+		*, *::before, *::after {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+
+		html {
+			scroll-behavior: smooth;
+			color-scheme: dark;
+		}
+
+		body {
+			background-color: var(--bg-base);
+			color: var(--text-main);
+			font-family: var(--font-sans);
+			font-size: 16px;
+			line-height: 1.65;
+			min-height: 100vh;
+			position: relative;
+			overflow-x: hidden;
+			-webkit-font-smoothing: antialiased;
+		}
+
+		/* High-tech ambient background */
+		.ambient-bg {
+			position: fixed;
+			inset: 0;
+			pointer-events: none;
+			z-index: 0;
+			overflow: hidden;
+		}
+
+		.glow-orb-1 {
+			position: absolute;
+			top: -150px;
+			left: 20%;
+			width: 650px;
+			height: 650px;
+			background: radial-gradient(circle, rgba(0, 240, 255, 0.12) 0%, transparent 70%);
+			filter: blur(80px);
+		}
+
+		.glow-orb-2 {
+			position: absolute;
+			top: 35%;
+			right: -150px;
+			width: 750px;
+			height: 750px;
+			background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
+			filter: blur(100px);
+		}
+
+		.glow-orb-3 {
+			position: absolute;
+			bottom: 10%;
+			left: -100px;
+			width: 600px;
+			height: 600px;
+			background: radial-gradient(circle, rgba(255, 51, 102, 0.08) 0%, transparent 70%);
+			filter: blur(90px);
+		}
+
+		.cyber-grid {
+			position: absolute;
+			inset: 0;
+			background-image: 
+				linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+				linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+			background-size: 48px 48px;
+			mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, #000 60%, transparent 100%);
+		}
+
+		/* Container */
+		.container {
+			width: min(1200px, calc(100% - 48px));
+			margin: 0 auto;
+			position: relative;
+			z-index: 1;
+		}
+
+		/* Navbar */
+		.navbar {
+			position: sticky;
+			top: 16px;
+			z-index: 100;
+			margin: 16px auto 0;
+			backdrop-filter: blur(20px);
+			-webkit-backdrop-filter: blur(20px);
+			background: rgba(14, 19, 31, 0.75);
+			border: 1px solid var(--border-subtle);
+			border-radius: 9999px;
+			padding: 10px 24px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+			transition: all 0.3s ease;
+		}
+
+		.brand {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			text-decoration: none;
+			color: #fff;
+			font-family: var(--font-display);
+			font-weight: 800;
+			font-size: 1.15rem;
+			letter-spacing: -0.02em;
+		}
+
+		.brand-icon {
+			width: 32px;
+			height: 32px;
+			border-radius: 8px;
+			background: linear-gradient(135deg, var(--cyan), var(--purple));
+			display: grid;
+			place-items: center;
+			box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+		}
+
+		.brand-tag {
+			font-family: var(--font-mono);
+			font-size: 0.65rem;
+			background: rgba(0, 240, 255, 0.12);
+			border: 1px solid rgba(0, 240, 255, 0.3);
+			color: var(--cyan);
+			padding: 2px 7px;
+			border-radius: 9999px;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+		}
+
+		.nav-links {
+			display: flex;
+			align-items: center;
+			gap: 20px;
+		}
+
+		.nav-link {
+			color: var(--text-muted);
+			text-decoration: none;
+			font-size: 0.88rem;
+			font-weight: 500;
+			transition: color 0.2s ease;
+		}
+
+		.nav-link:hover {
+			color: var(--cyan);
+		}
+
+		.btn-nav-action {
+			background: linear-gradient(135deg, #00f0ff 0%, #00a8ff 100%);
+			color: #040811;
+			font-family: var(--font-display);
+			font-weight: 700;
+			font-size: 0.84rem;
+			padding: 8px 18px;
+			border-radius: 9999px;
+			text-decoration: none;
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			box-shadow: 0 0 20px rgba(0, 240, 255, 0.35);
+			transition: transform 0.2s ease, box-shadow 0.2s ease;
+		}
+
+		.btn-nav-action:hover {
+			transform: translateY(-1px);
+			box-shadow: 0 0 28px rgba(0, 240, 255, 0.6);
+		}
+
+		/* Status Pill */
+		.status-indicator {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			padding: 6px 14px;
+			border-radius: 9999px;
+			background: rgba(16, 185, 129, 0.1);
+			border: 1px solid rgba(16, 185, 129, 0.25);
+			color: var(--emerald);
+			font-family: var(--font-mono);
+			font-size: 0.75rem;
+			font-weight: 600;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+		}
+
+		.pulse-dot {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background-color: var(--emerald);
+			box-shadow: 0 0 10px var(--emerald);
+			animation: pulse 2s infinite ease-in-out;
+		}
+
+		@keyframes pulse {
+			0%, 100% { opacity: 1; transform: scale(1); }
+			50% { opacity: 0.4; transform: scale(0.85); }
+		}
+
+		/* Hero Section */
+		.hero {
+			padding: 72px 0 54px;
+			text-align: center;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+
+		.hero-badge-wrap {
+			margin-bottom: 24px;
+		}
+
+		.hero-title {
+			font-family: var(--font-display);
+			font-size: clamp(2.8rem, 6.5vw, 5.2rem);
+			font-weight: 900;
+			line-height: 1.05;
+			letter-spacing: -0.035em;
+			max-width: 950px;
+			margin-bottom: 24px;
+			text-wrap: balance;
+		}
+
+		.text-gradient-cyan {
+			background: linear-gradient(135deg, #ffffff 30%, #00f0ff 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+		}
+
+		.text-gradient-purple {
+			background: linear-gradient(135deg, #a78bfa 0%, #ff3366 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+		}
+
+		.hero-dek {
+			font-size: clamp(1.05rem, 2vw, 1.25rem);
+			color: var(--text-muted);
+			max-width: 760px;
+			margin-bottom: 38px;
+			font-weight: 400;
+			line-height: 1.65;
+		}
+
+		.hero-actions {
+			display: flex;
+			gap: 16px;
+			flex-wrap: wrap;
+			justify-content: center;
+			margin-bottom: 48px;
+		}
+
+		.btn-primary {
+			background: linear-gradient(135deg, #00f0ff 0%, #0084ff 100%);
+			color: #030712;
+			font-family: var(--font-display);
+			font-weight: 700;
+			font-size: 1.05rem;
+			padding: 15px 32px;
+			border-radius: var(--radius-md);
+			text-decoration: none;
+			display: inline-flex;
+			align-items: center;
+			gap: 10px;
+			box-shadow: 0 10px 25px rgba(0, 240, 255, 0.35);
+			transition: all 0.25s ease;
+			border: none;
+			cursor: pointer;
+		}
+
+		.btn-primary:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 14px 35px rgba(0, 240, 255, 0.55);
+		}
+
+		.btn-secondary {
+			background: rgba(255, 255, 255, 0.05);
+			color: #fff;
+			font-family: var(--font-display);
+			font-weight: 600;
+			font-size: 1.05rem;
+			padding: 15px 28px;
+			border-radius: var(--radius-md);
+			text-decoration: none;
+			display: inline-flex;
+			align-items: center;
+			gap: 10px;
+			border: 1px solid var(--border-subtle);
+			backdrop-filter: blur(10px);
+			transition: all 0.25s ease;
+			cursor: pointer;
+		}
+
+		.btn-secondary:hover {
+			background: rgba(255, 255, 255, 0.1);
+			border-color: rgba(255, 255, 255, 0.2);
+			transform: translateY(-2px);
+		}
+
+		/* Stat bar */
+		.stats-grid {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 16px;
+			width: 100%;
+			max-width: 980px;
+		}
+
+		.stat-card {
+			background: var(--bg-card);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--radius-md);
+			padding: 18px 20px;
+			backdrop-filter: blur(12px);
+			text-align: left;
+			position: relative;
+			overflow: hidden;
+			transition: transform 0.2s ease, border-color 0.2s ease;
+		}
+
+		.stat-card:hover {
+			transform: translateY(-3px);
+			border-color: rgba(0, 240, 255, 0.3);
+		}
+
+		.stat-card::before {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			height: 2px;
+			background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+			opacity: 0;
+			transition: opacity 0.3s ease;
+		}
+
+		.stat-card:hover::before {
+			opacity: 1;
+		}
+
+		.stat-label {
+			font-size: 0.78rem;
+			text-transform: uppercase;
+			font-family: var(--font-mono);
+			color: var(--text-dim);
+			letter-spacing: 0.06em;
+			margin-bottom: 6px;
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.stat-value {
+			font-family: var(--font-display);
+			font-size: 1.4rem;
+			font-weight: 700;
+			color: #fff;
+		}
+
+		/* Section styling */
+		section {
+			padding: 48px 0;
+		}
+
+		.section-header {
+			margin-bottom: 36px;
+		}
+
+		.section-tag {
+			font-family: var(--font-mono);
+			font-size: 0.8rem;
+			color: var(--cyan);
+			letter-spacing: 0.1em;
+			text-transform: uppercase;
+			margin-bottom: 10px;
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.section-title {
+			font-family: var(--font-display);
+			font-size: clamp(1.8rem, 3.5vw, 2.7rem);
+			font-weight: 800;
+			letter-spacing: -0.03em;
+			line-height: 1.15;
+			color: #fff;
+		}
+
+		.section-desc {
+			color: var(--text-muted);
+			font-size: 1.05rem;
+			max-width: 680px;
+			margin-top: 10px;
+		}
+
+		/* Download Hub (God Level) */
+		.download-hub {
+			background: linear-gradient(180deg, rgba(14, 20, 36, 0.85) 0%, rgba(9, 13, 24, 0.95) 100%);
+			border: 1px solid rgba(0, 240, 255, 0.2);
+			border-radius: var(--radius-xl);
+			padding: 40px;
+			position: relative;
+			overflow: hidden;
+			box-shadow: var(--shadow-card), var(--shadow-glow);
+		}
+
+		.download-hub::after {
+			content: '';
+			position: absolute;
+			top: 0;
+			right: 0;
+			width: 320px;
+			height: 320px;
+			background: radial-gradient(circle, rgba(0, 240, 255, 0.08) 0%, transparent 70%);
+			pointer-events: none;
+		}
+
+		.hub-grid {
+			display: grid;
+			grid-template-columns: 1fr 1.6fr;
+			gap: 40px;
+			align-items: start;
+		}
+
+		.hub-info h3 {
+			font-family: var(--font-display);
+			font-size: 1.8rem;
+			font-weight: 800;
+			color: #fff;
+			margin-bottom: 14px;
+			line-height: 1.2;
+		}
+
+		.hub-info p {
+			color: var(--text-muted);
+			font-size: 0.98rem;
+			margin-bottom: 22px;
+		}
+
+		.badge-feature {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			padding: 6px 12px;
+			border-radius: 8px;
+			background: rgba(255, 255, 255, 0.04);
+			border: 1px solid var(--border-subtle);
+			font-size: 0.82rem;
+			color: #e5e7eb;
+			margin-right: 8px;
+			margin-bottom: 8px;
+		}
+
+		/* Platform Selector Tabs */
+		.platform-nav {
+			display: flex;
+			gap: 8px;
+			background: rgba(0, 0, 0, 0.35);
+			padding: 6px;
+			border-radius: var(--radius-md);
+			border: 1px solid var(--border-subtle);
+			margin-bottom: 24px;
+			overflow-x: auto;
+		}
+
+		.platform-tab {
+			background: transparent;
+			border: none;
+			color: var(--text-muted);
+			font-family: var(--font-display);
+			font-weight: 600;
+			font-size: 0.9rem;
+			padding: 10px 18px;
+			border-radius: 10px;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			transition: all 0.2s ease;
+			white-space: nowrap;
+		}
+
+		.platform-tab:hover {
+			color: #fff;
+			background: rgba(255, 255, 255, 0.05);
+		}
+
+		.platform-tab.active {
+			background: rgba(0, 240, 255, 0.15);
+			color: var(--cyan);
+			border: 1px solid rgba(0, 240, 255, 0.3);
+			box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
+		}
+
+		.platform-content {
+			display: none;
+			animation: fadeIn 0.3s ease;
+		}
+
+		.platform-content.active {
+			display: block;
+		}
+
+		@keyframes fadeIn {
+			from { opacity: 0; transform: translateY(6px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
+
+		/* Platform Card */
+		.download-box {
+			background: rgba(14, 20, 32, 0.8);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--radius-lg);
+			padding: 26px;
+		}
+
+		.download-box-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-start;
+			margin-bottom: 20px;
+		}
+
+		.download-meta h4 {
+			font-family: var(--font-display);
+			font-size: 1.3rem;
+			font-weight: 700;
+			color: #fff;
+		}
+
+		.download-meta span {
+			font-size: 0.82rem;
+			color: var(--text-dim);
+		}
+
+		.btn-download-main {
+			background: linear-gradient(135deg, var(--emerald) 0%, #059669 100%);
+			color: #fff;
+			font-family: var(--font-display);
+			font-weight: 700;
+			font-size: 0.95rem;
+			padding: 12px 24px;
+			border-radius: var(--radius-sm);
+			text-decoration: none;
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+			transition: all 0.2s ease;
+		}
+
+		.btn-download-main:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 8px 25px rgba(16, 185, 129, 0.5);
+		}
+
+		.cli-install-box {
+			margin-top: 18px;
+			background: #060911;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: var(--radius-sm);
+			padding: 12px 16px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+		}
+
+		.cli-install-box code {
+			font-family: var(--font-mono);
+			font-size: 0.85rem;
+			color: #e2e8f0;
+			overflow-x: auto;
+			white-space: nowrap;
+		}
+
+		.copy-btn {
+			background: rgba(255, 255, 255, 0.08);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			color: var(--text-muted);
+			border-radius: 6px;
+			padding: 6px 12px;
+			font-size: 0.76rem;
+			font-family: var(--font-mono);
+			cursor: pointer;
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			transition: all 0.2s ease;
+			flex-shrink: 0;
+		}
+
+		.copy-btn:hover {
+			background: rgba(0, 240, 255, 0.2);
+			color: var(--cyan);
+			border-color: rgba(0, 240, 255, 0.4);
+		}
+
+		.copy-btn.copied {
+			background: rgba(16, 185, 129, 0.2);
+			color: var(--emerald);
+			border-color: var(--emerald);
+		}
+
+		.alt-links {
+			margin-top: 16px;
+			display: flex;
+			gap: 14px;
+			flex-wrap: wrap;
+			font-size: 0.82rem;
+		}
+
+		.alt-link {
+			color: var(--cyan);
+			text-decoration: none;
+			display: inline-flex;
+			align-items: center;
+			gap: 4px;
+			transition: text-decoration 0.2s;
+		}
+
+		.alt-link:hover {
+			text-decoration: underline;
+		}
+
+		/* Security Banner */
+		.security-card {
+			margin-top: 24px;
+			background: linear-gradient(90deg, rgba(255, 51, 102, 0.08) 0%, rgba(14, 19, 31, 0.6) 100%);
+			border-left: 4px solid var(--crimson);
+			border-radius: var(--radius-md);
+			padding: 18px 22px;
+			display: flex;
+			gap: 16px;
+			align-items: flex-start;
+		}
+
+		.security-icon {
+			width: 28px;
+			height: 28px;
+			border-radius: 50%;
+			background: rgba(255, 51, 102, 0.2);
+			color: var(--crimson);
+			display: grid;
+			place-items: center;
+			flex-shrink: 0;
+		}
+
+		.security-card strong {
+			color: #fff;
+			font-size: 0.95rem;
+			display: block;
+			margin-bottom: 4px;
+		}
+
+		.security-card p {
+			font-size: 0.86rem;
+			color: var(--text-muted);
+			margin: 0;
+		}
+
+		/* Two Track Flow: Host vs Client */
+		.tracks-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 28px;
+		}
+
+		.track-card {
+			background: var(--bg-card);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--radius-xl);
+			padding: 34px;
+			position: relative;
+			box-shadow: var(--shadow-card);
+			transition: all 0.3s ease;
+		}
+
+		.track-card:hover {
+			transform: translateY(-4px);
+		}
+
+		.track-card.host-track {
+			border-top: 4px solid var(--purple);
+		}
+
+		.track-card.client-track {
+			border-top: 4px solid var(--cyan);
+		}
+
+		.track-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 24px;
+		}
+
+		.track-title {
+			font-family: var(--font-display);
+			font-size: 1.5rem;
+			font-weight: 800;
+			color: #fff;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.track-badge {
+			font-family: var(--font-mono);
+			font-size: 0.72rem;
+			padding: 4px 10px;
+			border-radius: 9999px;
+			font-weight: 700;
+			letter-spacing: 0.05em;
+		}
+
+		.host-badge {
+			background: rgba(139, 92, 246, 0.2);
+			border: 1px solid rgba(139, 92, 246, 0.4);
+			color: #c4b5fd;
+		}
+
+		.client-badge {
+			background: rgba(0, 240, 255, 0.2);
+			border: 1px solid rgba(0, 240, 255, 0.4);
+			color: var(--cyan);
+		}
+
+		.step-list {
+			list-style: none;
+			display: flex;
+			flex-direction: column;
+			gap: 20px;
+		}
+
+		.step-item {
+			display: flex;
+			gap: 16px;
+			align-items: flex-start;
+		}
+
+		.step-num {
+			width: 32px;
+			height: 32px;
+			border-radius: 50%;
+			background: rgba(255, 255, 255, 0.06);
+			border: 1px solid var(--border-subtle);
+			display: grid;
+			place-items: center;
+			font-family: var(--font-display);
+			font-weight: 800;
+			font-size: 0.95rem;
+			color: #fff;
+			flex-shrink: 0;
+		}
+
+		.host-track .step-num {
+			color: #c4b5fd;
+			background: rgba(139, 92, 246, 0.15);
+			border-color: rgba(139, 92, 246, 0.3);
+		}
+
+		.client-track .step-num {
+			color: var(--cyan);
+			background: rgba(0, 240, 255, 0.15);
+			border-color: rgba(0, 240, 255, 0.3);
+		}
+
+		.step-body h5 {
+			font-family: var(--font-display);
+			font-size: 1.05rem;
+			font-weight: 700;
+			color: #fff;
+			margin-bottom: 4px;
+		}
+
+		.step-body p {
+			font-size: 0.9rem;
+			color: var(--text-muted);
+			line-height: 1.5;
+		}
+
+		.step-body code {
+			font-family: var(--font-mono);
+			background: rgba(0, 0, 0, 0.4);
+			color: #e2e8f0;
+			padding: 2px 6px;
+			border-radius: 4px;
+			font-size: 0.85em;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+		}
+
+		.terminal-snippet {
+			margin-top: 10px;
+			background: #070a12;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: var(--radius-sm);
+			padding: 12px 14px;
+			font-family: var(--font-mono);
+			font-size: 0.8rem;
+			color: #a5f3fc;
+			line-height: 1.6;
+			position: relative;
+		}
+
+		.terminal-bar {
+			display: flex;
+			gap: 6px;
+			margin-bottom: 8px;
+		}
+
+		.terminal-circle {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+		}
+
+		/* Interactive Room Invite Generator (God Level Tool) */
+		.tool-section {
+			background: linear-gradient(135deg, rgba(17, 24, 39, 0.8) 0%, rgba(11, 17, 29, 0.9) 100%);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--radius-xl);
+			padding: 36px;
+			box-shadow: var(--shadow-card);
+			position: relative;
+			overflow: hidden;
+		}
+
+		.tool-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 32px;
+			align-items: center;
+		}
+
+		.input-group {
+			margin-bottom: 18px;
+		}
+
+		.input-label {
+			display: block;
+			font-family: var(--font-mono);
+			font-size: 0.8rem;
+			text-transform: uppercase;
+			color: var(--text-dim);
+			margin-bottom: 8px;
+			letter-spacing: 0.05em;
+		}
+
+		.cyber-input {
+			width: 100%;
+			background: #060a14;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			border-radius: var(--radius-sm);
+			padding: 12px 16px;
+			color: #fff;
+			font-family: var(--font-mono);
+			font-size: 0.95rem;
+			outline: none;
+			transition: all 0.2s ease;
+		}
+
+		.cyber-input:focus {
+			border-color: var(--cyan);
+			box-shadow: 0 0 16px rgba(0, 240, 255, 0.25);
+		}
+
+		.preview-card {
+			background: #050811;
+			border: 1px dashed rgba(0, 240, 255, 0.35);
+			border-radius: var(--radius-md);
+			padding: 24px;
+			position: relative;
+		}
+
+		.preview-title {
+			font-family: var(--font-mono);
+			font-size: 0.75rem;
+			color: var(--cyan);
+			text-transform: uppercase;
+			margin-bottom: 14px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.preview-text {
+			font-family: var(--font-mono);
+			font-size: 0.85rem;
+			color: #e2e8f0;
+			white-space: pre-wrap;
+			line-height: 1.6;
+			margin-bottom: 18px;
+		}
+
+		/* Readiness Checklist */
+		.checklist-container {
+			background: var(--bg-card);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--radius-xl);
+			padding: 34px;
+		}
+
+		.progress-bar-wrap {
+			margin-bottom: 24px;
+		}
+
+		.progress-info {
+			display: flex;
+			justify-content: space-between;
+			font-family: var(--font-mono);
+			font-size: 0.85rem;
+			margin-bottom: 8px;
+		}
+
+		.progress-track {
+			height: 8px;
+			background: rgba(255, 255, 255, 0.08);
+			border-radius: 9999px;
+			overflow: hidden;
+		}
+
+		.progress-fill {
+			height: 100%;
+			width: 0%;
+			background: linear-gradient(90deg, var(--cyan), var(--emerald));
+			border-radius: 9999px;
+			transition: width 0.35s ease;
+			box-shadow: 0 0 12px var(--emerald);
+		}
+
+		.checklist-grid {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 14px;
+		}
+
+		.check-item {
+			background: rgba(14, 19, 31, 0.6);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--radius-md);
+			padding: 14px 18px;
+			display: flex;
+			align-items: center;
+			gap: 14px;
+			cursor: pointer;
+			user-select: none;
+			transition: all 0.2s ease;
+		}
+
+		.check-item:hover {
+			background: rgba(255, 255, 255, 0.04);
+			border-color: rgba(255, 255, 255, 0.15);
+		}
+
+		.check-item.checked {
+			border-color: rgba(16, 185, 129, 0.4);
+			background: rgba(16, 185, 129, 0.08);
+		}
+
+		.custom-checkbox {
+			width: 22px;
+			height: 22px;
+			border-radius: 6px;
+			border: 2px solid var(--text-dim);
+			display: grid;
+			place-items: center;
+			flex-shrink: 0;
+			transition: all 0.2s ease;
+		}
+
+		.check-item.checked .custom-checkbox {
+			background: var(--emerald);
+			border-color: var(--emerald);
+			box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+		}
+
+		.check-label {
+			font-size: 0.92rem;
+			color: var(--text-main);
+			font-weight: 500;
+		}
+
+		/* Controls Section (God Level HUD) */
+		.controls-grid {
+			display: grid;
+			grid-template-columns: 1.2fr 1fr;
+			gap: 28px;
+		}
+
+		.hud-card {
+			background: var(--bg-card);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--radius-xl);
+			padding: 32px;
+			box-shadow: var(--shadow-card);
+		}
+
+		.key-bind-list {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 14px;
+		}
+
+		.key-bind-item {
+			background: rgba(14, 20, 34, 0.8);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--radius-md);
+			padding: 12px 16px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.key-cap {
+			background: linear-gradient(180deg, #1f293d 0%, #111827 100%);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-bottom: 3px solid rgba(0, 0, 0, 0.6);
+			border-radius: 6px;
+			padding: 4px 10px;
+			font-family: var(--font-mono);
+			font-size: 0.82rem;
+			font-weight: 700;
+			color: var(--cyan);
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+		}
+
+		.key-action {
+			font-size: 0.88rem;
+			color: var(--text-muted);
+			font-weight: 500;
+		}
+
+		/* Color selector preview */
+		.colors-palette {
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+			margin-top: 16px;
+		}
+
+		.color-chip {
+			width: 26px;
+			height: 26px;
+			border-radius: 50%;
+			border: 2px solid rgba(255, 255, 255, 0.3);
+			cursor: pointer;
+			transition: transform 0.2s ease;
+		}
+
+		.color-chip:hover {
+			transform: scale(1.25);
+			border-color: #fff;
+		}
+
+		/* Comparison table: Tailscale vs Port Forwarding */
+		.comparison-table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-top: 20px;
+			font-size: 0.92rem;
+		}
+
+		.comparison-table th {
+			text-align: left;
+			padding: 14px 18px;
+			background: rgba(0, 0, 0, 0.3);
+			color: var(--text-muted);
+			font-family: var(--font-mono);
+			font-size: 0.78rem;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			border-bottom: 1px solid var(--border-subtle);
+		}
+
+		.comparison-table td {
+			padding: 14px 18px;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+			color: var(--text-main);
+		}
+
+		.comparison-table tr:hover td {
+			background: rgba(255, 255, 255, 0.02);
+		}
+
+		/* Troubleshooting Accordions */
+		.accordion-group {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+		}
+
+		.accordion-item {
+			background: var(--bg-card);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--radius-md);
+			overflow: hidden;
+			transition: border-color 0.2s ease;
+		}
+
+		.accordion-item:hover {
+			border-color: rgba(255, 255, 255, 0.15);
+		}
+
+		.accordion-trigger {
+			width: 100%;
+			background: transparent;
+			border: none;
+			padding: 18px 24px;
+			text-align: left;
+			color: #fff;
+			font-family: var(--font-display);
+			font-size: 1.05rem;
+			font-weight: 700;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			cursor: pointer;
+		}
+
+		.accordion-icon {
+			transition: transform 0.25s ease;
+		}
+
+		.accordion-item.active .accordion-icon {
+			transform: rotate(180deg);
+		}
+
+		.accordion-content {
+			display: none;
+			padding: 0 24px 22px;
+			color: var(--text-muted);
+			font-size: 0.92rem;
+			line-height: 1.6;
+		}
+
+		.accordion-item.active .accordion-content {
+			display: block;
+		}
+
+		/* Footer */
+		footer {
+			margin-top: 90px;
+			border-top: 1px solid var(--border-subtle);
+			padding: 48px 0 60px;
+			background: #04070d;
+			color: var(--text-dim);
+			font-size: 0.88rem;
+		}
+
+		.footer-grid {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 20px;
+		}
+
+		.footer-links {
+			display: flex;
+			gap: 20px;
+		}
+
+		.footer-links a {
+			color: var(--text-muted);
+			text-decoration: none;
+			transition: color 0.2s;
+		}
+
+		.footer-links a:hover {
+			color: var(--cyan);
+		}
+
+		/* Responsive */
+		@media (max-width: 900px) {
+			.hub-grid, .tracks-grid, .tool-grid, .controls-grid {
+				grid-template-columns: 1fr;
+			}
+			.stats-grid {
+				grid-template-columns: repeat(2, 1fr);
+			}
+			.checklist-grid {
+				grid-template-columns: 1fr;
+			}
+			.navbar {
+				border-radius: var(--radius-md);
+			}
+			.nav-links {
+				display: none;
+			}
+		}
+
+		@media (max-width: 580px) {
+			.stats-grid {
+				grid-template-columns: 1fr;
+			}
+			.key-bind-list {
+				grid-template-columns: 1fr;
+			}
+			.hero-actions {
+				flex-direction: column;
+				width: 100%;
+			}
+			.btn-primary, .btn-secondary {
+				width: 100%;
+				justify-content: center;
+			}
+		}
+	</style>
+</head>
+<body>
+
+	<!-- Ambient Lighting & Cyber Matrix Grid -->
+	<div class="ambient-bg" aria-hidden="true">
+		<div class="glow-orb-1"></div>
+		<div class="glow-orb-2"></div>
+		<div class="glow-orb-3"></div>
+		<div class="cyber-grid"></div>
+	</div>
+
+	<div class="container">
+		<!-- Navigation Bar -->
+		<nav class="navbar" aria-label="Main Navigation">
+			<a href="#top" class="brand">
+				<div class="brand-icon">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#040811" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="10"></circle>
+						<line x1="22" y1="12" x2="18" y2="12"></line>
+						<line x1="6" y1="12" x2="2" y2="12"></line>
+						<line x1="12" y1="6" x2="12" y2="2"></line>
+						<line x1="12" y1="22" x2="12" y2="18"></line>
+					</svg>
+				</div>
+				<span>URSINA // DEATHMATCH</span>
+				<span class="brand-tag">P2P MESH</span>
+			</a>
+
+			<div class="nav-links">
+				<a href="#downloads" class="nav-link">Downloads</a>
+				<a href="#quickstart" class="nav-link">Host &amp; Join</a>
+				<a href="#generator" class="nav-link">Room Generator</a>
+				<a href="#checklist" class="nav-link">Readiness</a>
+				<a href="#controls" class="nav-link">Controls</a>
+				<a href="#troubleshoot" class="nav-link">Troubleshooting</a>
+			</div>
+
+			<a href="#quickstart" class="btn-nav-action">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+					<polygon points="5 3 19 12 5 21 5 3"></polygon>
+				</svg>
+				Play Match
+			</a>
+		</nav>
+
+		<!-- Hero Section -->
+		<header class="hero" id="top">
+			<div class="hero-badge-wrap">
+				<div class="status-indicator">
+					<span class="pulse-dot"></span>
+					<span>P2P Encrypted Mesh • Zero Router Port Forwarding</span>
+				</div>
+			</div>
+
+			<h1 class="hero-title">
+				Play Together Anywhere.<br>
+				<span class="text-gradient-cyan">Zero Lag WireGuard Mesh.</span>
+			</h1>
+
+			<p class="hero-dek">
+				Ursina TCP Deathmatch connects players from different cities, colleges, or apartments over Tailscale’s private, encrypted peer-to-peer tunnels. No public IP risk, no router logins, and zero firewall headache.
+			</p>
+
+			<div class="hero-actions">
+				<a href="#downloads" class="btn-primary">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+						<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+						<polyline points="7 10 12 15 17 10"></polyline>
+						<line x1="12" y1="15" x2="12" y2="3"></line>
+					</svg>
+					Download Tailscale
+				</a>
+				<a href="#quickstart" class="btn-secondary">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+						<line x1="8" y1="21" x2="16" y2="21"></line>
+						<line x1="12" y1="17" x2="12" y2="21"></line>
+					</svg>
+					Launch Executables
+				</a>
+			</div>
+
+			<!-- Specs Grid -->
+			<div class="stats-grid">
+				<div class="stat-card">
+					<div class="stat-label">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+						Network Engine
+					</div>
+					<div class="stat-value">TCP Sockets</div>
+				</div>
+
+				<div class="stat-card">
+					<div class="stat-label">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+						Default Port
+					</div>
+					<div class="stat-value">8888 / TCP</div>
+				</div>
+
+				<div class="stat-card">
+					<div class="stat-label">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+						Max Arena Capacity
+					</div>
+					<div class="stat-value">10 Players</div>
+				</div>
+
+				<div class="stat-card">
+					<div class="stat-label">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+						Latency / WireGuard
+					</div>
+					<div class="stat-value">Direct P2P</div>
+				</div>
+			</div>
+		</header>
+
+		<!-- Security & Sharing Advisory -->
+		<aside class="security-card" aria-label="Security and Invite Guidance">
+			<div class="security-icon">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+					<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+				</svg>
+			</div>
+			<div>
+				<strong>Private Invite Link Security</strong>
+				<p>
+					Share your Tailscale invite URL or node invitation <em>only</em> privately with trusted friends. Never paste it in public Discord servers, Twitch streams, or public GitHub commits. After your friends have joined and the session concludes, you can revoke unused invites in your <a href="https://login.tailscale.com/admin/machines" target="_blank" rel="noopener" style="color:var(--crimson); text-decoration:underline;">Tailscale Admin Console</a>.
+				</p>
+			</div>
+		</aside>
+
+		<!-- Tailscale Download Hub (God Level) -->
+		<section id="downloads">
+			<div class="section-header">
+				<span class="section-tag">// STEP 00: PREREQUISITE</span>
+				<h2 class="section-title">Install Tailscale on All Devices</h2>
+				<p class="section-desc">Tailscale creates a secure virtual LAN interface with an allocated IPv4 in the <code>100.x.y.z</code> range. Both Host and Clients must install and run Tailscale.</p>
+			</div>
+
+			<div class="download-hub">
+				<div class="hub-grid">
+					<!-- Info Column -->
+					<div class="hub-info">
+						<h3>One-Click Peer-to-Peer Networking</h3>
+						<p>Both the Host and every Player install the Tailscale client. Sign in using any Google, Microsoft, GitHub, or Apple account. Once connected, your devices talk directly via WireGuard tunnels.</p>
+						
+						<div>
+							<span class="badge-feature">✓ Zero Router Port-Forwarding</span>
+							<span class="badge-feature">✓ End-to-End Encrypted</span>
+							<span class="badge-feature">✓ NAT Traversal (STUN/DERP)</span>
+							<span class="badge-feature">✓ 100% Free for Personal Use</span>
+						</div>
+
+						<div style="margin-top: 24px;">
+							<a href="https://login.tailscale.com/admin/machines" target="_blank" rel="noopener" class="btn-secondary" style="font-size: 0.88rem; padding: 10px 18px;">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<circle cx="12" cy="12" r="3"></circle>
+									<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+								</svg>
+								Open Tailscale Admin Console
+							</a>
+						</div>
+					</div>
+
+					<!-- Interactive Platform Download Tabs -->
+					<div>
+						<div class="platform-nav" role="tablist">
+							<button class="platform-tab active" onclick="switchPlatform('win', this)" role="tab" aria-selected="true">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.951-1.801"/></svg>
+								Windows
+							</button>
+							<button class="platform-tab" onclick="switchPlatform('mac', this)" role="tab" aria-selected="false">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-1.99.6-2.63 1.35-.56.65-1.06 1.71-.93 2.73 1 .08 2.02-.48 2.64-1.23"/></svg>
+								macOS
+							</button>
+							<button class="platform-tab" onclick="switchPlatform('linux', this)" role="tab" aria-selected="false">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+								Linux
+							</button>
+							<button class="platform-tab" onclick="switchPlatform('mobile', this)" role="tab" aria-selected="false">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+								Mobile
+							</button>
+						</div>
+
+						<!-- Windows Card -->
+						<div id="platform-win" class="platform-content active">
+							<div class="download-box">
+								<div class="download-box-header">
+									<div class="download-meta">
+										<h4>Tailscale for Windows 10 &amp; 11</h4>
+										<span>Official 64-bit installer with background service &amp; system tray app</span>
+									</div>
+									<a href="https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe" target="_blank" rel="noopener" class="btn-download-main">
+										<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+										Download .EXE (Direct)
+									</a>
+								</div>
+								
+								<div class="cli-install-box">
+									<code>winget install tailscale.tailscale</code>
+									<button class="copy-btn" onclick="copySnippet(this, 'winget install tailscale.tailscale')">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+										Copy
+									</button>
+								</div>
+
+								<div class="alt-links">
+									<a href="https://tailscale.com/download/windows" target="_blank" rel="noopener" class="alt-link">Tailscale Windows Portal &rarr;</a>
+									<a href="https://apps.microsoft.com/detail/9pck998q2s0g" target="_blank" rel="noopener" class="alt-link">Microsoft Store &rarr;</a>
+								</div>
+							</div>
+						</div>
+
+						<!-- macOS Card -->
+						<div id="platform-mac" class="platform-content">
+							<div class="download-box">
+								<div class="download-box-header">
+									<div class="download-meta">
+										<h4>Tailscale for macOS</h4>
+										<span>Supports Apple Silicon (M1/M2/M3/M4) and Intel Macs</span>
+									</div>
+									<a href="https://pkgs.tailscale.com/stable/Tailscale-latest-macos.pkg" target="_blank" rel="noopener" class="btn-download-main">
+										<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+										Download Standalone .PKG
+									</a>
+								</div>
+								
+								<div class="cli-install-box">
+									<code>brew install --cask tailscale</code>
+									<button class="copy-btn" onclick="copySnippet(this, 'brew install --cask tailscale')">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+										Copy
+									</button>
+								</div>
+
+								<div class="alt-links">
+									<a href="https://tailscale.com/download/mac" target="_blank" rel="noopener" class="alt-link">Mac App Store Version &rarr;</a>
+								</div>
+							</div>
+						</div>
+
+						<!-- Linux Card -->
+						<div id="platform-linux" class="platform-content">
+							<div class="download-box">
+								<div class="download-box-header">
+									<div class="download-meta">
+										<h4>Tailscale for Linux</h4>
+										<span>Ubuntu, Debian, Fedora, Arch, CentOS, Raspberry Pi OS</span>
+									</div>
+									<a href="https://tailscale.com/download/linux" target="_blank" rel="noopener" class="btn-download-main">
+										Official Linux Packages &rarr;
+									</a>
+								</div>
+								
+								<div class="cli-install-box">
+									<code>curl -fsSL https://tailscale.com/install.sh | sh</code>
+									<button class="copy-btn" onclick="copySnippet(this, 'curl -fsSL https://tailscale.com/install.sh | sh')">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+										Copy
+									</button>
+								</div>
+
+								<div class="cli-install-box" style="margin-top: 10px;">
+									<code>sudo tailscale up</code>
+									<button class="copy-btn" onclick="copySnippet(this, 'sudo tailscale up')">
+										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+										Copy
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<!-- Mobile / Companion -->
+						<div id="platform-mobile" class="platform-content">
+							<div class="download-box">
+								<div class="download-box-header">
+									<div class="download-meta">
+										<h4>Tailscale Mobile Clients</h4>
+										<span>View online machines and ping devices from your phone or tablet</span>
+									</div>
+								</div>
+								
+								<div style="display:flex; gap:12px; flex-wrap:wrap;">
+									<a href="https://apps.apple.com/app/tailscale/id1470499037" target="_blank" rel="noopener" class="btn-secondary" style="flex:1; justify-content:center;">
+										iOS / iPadOS App Store &rarr;
+									</a>
+									<a href="https://play.google.com/store/apps/details?id=com.tailscale.ipn" target="_blank" rel="noopener" class="btn-secondary" style="flex:1; justify-content:center;">
+										Android Google Play &rarr;
+									</a>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- Comparison Table: Why Tailscale? -->
+		<section>
+			<div class="hud-card" style="padding: 30px;">
+				<h3 style="font-family: var(--font-display); font-size: 1.3rem; margin-bottom: 8px;">Network Architecture: Tailscale vs The Old Ways</h3>
+				<p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Why modern multiplayer games use mesh VPNs over hazardous router port-forwarding.</p>
+				
+				<div style="overflow-x: auto;">
+					<table class="comparison-table">
+						<thead>
+							<tr>
+								<th>Feature</th>
+								<th style="color: var(--cyan);">Tailscale Mesh VPN</th>
+								<th>Traditional Port Forwarding</th>
+								<th>Hamachi / Radmin</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td><strong>Router Config / Admin Access</strong></td>
+								<td style="color: var(--emerald);">✓ Zero changes required</td>
+								<td style="color: var(--crimson);">✗ Needs router admin login</td>
+								<td>✓ No router config</td>
+							</tr>
+							<tr>
+								<td><strong>Public IP Exposure</strong></td>
+								<td style="color: var(--emerald);">✓ Hidden (private 100.x.y.z only)</td>
+								<td style="color: var(--crimson);">✗ Exposes home IP to attacks</td>
+								<td>✓ Virtual IP only</td>
+							</tr>
+							<tr>
+								<td><strong>CGNAT / Mobile Hotspot / Dorms</strong></td>
+								<td style="color: var(--emerald);">✓ Seamless NAT traversal</td>
+								<td style="color: var(--crimson);">✗ Completely blocked by ISPs</td>
+								<td>~ Hit or miss relaying</td>
+							</tr>
+							<tr>
+								<td><strong>Latency &amp; Speed</strong></td>
+								<td style="color: var(--emerald);">Direct kernel WireGuard P2P</td>
+								<td>Direct (unencrypted)</td>
+								<td style="color: var(--crimson);">High latency proxy relays</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</section>
+
+		<!-- Step-by-Step Walkthrough: Host vs Client -->
+		<section id="quickstart">
+			<div class="section-header">
+				<span class="section-tag">// STEP 01 &amp; 02: DUAL TRACK FLOW</span>
+				<h2 class="section-title">Host a Match or Join Your Friends</h2>
+				<p class="section-desc">Follow the corresponding track below. Executables are located in the <code>play/</code> folder of this repository.</p>
+			</div>
+
+			<div class="tracks-grid">
+				<!-- Host Track -->
+				<div class="track-card host-track">
+					<div class="track-header">
+						<h3 class="track-title">
+							<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" color="#c4b5fd">
+								<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+								<line x1="4" y1="22" x2="4" y2="15"></line>
+							</svg>
+							Host Setup (Leader)
+						</h3>
+						<span class="track-badge host-badge">SERVER ROLE</span>
+					</div>
+
+					<ol class="step-list">
+						<li class="step-item">
+							<div class="step-num">1</div>
+							<div class="step-body">
+								<h5>Connect to Tailscale</h5>
+								<p>Ensure your Tailscale client is signed in and says <strong>Connected</strong> in your Windows taskbar tray or macOS menu bar.</p>
+							</div>
+						</li>
+
+						<li class="step-item">
+							<div class="step-num">2</div>
+							<div class="step-body">
+								<h5>Invite or Share with Friends</h5>
+								<p>Send a machine share invite from your <a href="https://login.tailscale.com/admin/machines" target="_blank" rel="noopener" style="color:var(--purple); text-decoration:underline;">Tailscale Admin Console</a>, or share your reusable invite link privately.</p>
+							</div>
+						</li>
+
+						<li class="step-item">
+							<div class="step-num">3</div>
+							<div class="step-body">
+								<h5>Launch <code>play/server.exe</code></h5>
+								<p>Double-click <code>server.exe</code>. A terminal opens and auto-detects your Tailscale IPv4 address:</p>
+								<div class="terminal-snippet">
+									<div class="terminal-bar">
+										<div class="terminal-circle" style="background:#ff5f56;"></div>
+										<div class="terminal-circle" style="background:#ffbd2e;"></div>
+										<div class="terminal-circle" style="background:#27c93f;"></div>
+									</div>
+									[*] Server listening on 0.0.0.0:8888<br>
+									[*] <span style="color:#f59e0b;">Tailscale IP  = 100.121.132.98</span> (Share with friends!)<br>
+									[*] Local LAN IP  = 192.168.1.5 (Wi-Fi only)
+								</div>
+							</div>
+						</li>
+
+						<li class="step-item">
+							<div class="step-num">4</div>
+							<div class="step-body">
+								<h5>Keep Server Running &amp; Share IP</h5>
+								<p>Keep the black terminal window open. Copy your <code>100.x.y.z</code> Tailscale IP and send it to your friends!</p>
+							</div>
+						</li>
+					</ol>
+				</div>
+
+				<!-- Client Track -->
+				<div class="track-card client-track">
+					<div class="track-header">
+						<h3 class="track-title">
+							<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" color="var(--cyan)">
+								<circle cx="12" cy="12" r="10"></circle>
+								<polygon points="10 8 16 12 10 16 10 8"></polygon>
+							</svg>
+							Player Setup (Joiner)
+						</h3>
+						<span class="track-badge client-badge">CLIENT ROLE</span>
+					</div>
+
+					<ol class="step-list">
+						<li class="step-item">
+							<div class="step-num">1</div>
+							<div class="step-body">
+								<h5>Accept Invite &amp; Launch Tailscale</h5>
+								<p>Open the invite link from the host in your browser, accept the connection, and ensure your Tailscale desktop app is running and <strong>Connected</strong>.</p>
+							</div>
+						</li>
+
+						<li class="step-item">
+							<div class="step-num">2</div>
+							<div class="step-body">
+								<h5>Launch <code>play/client.exe</code></h5>
+								<p>Run <code>client.exe</code> from the <code>play/</code> folder. The high-tech launcher configuration GUI will appear on screen.</p>
+							</div>
+						</li>
+
+						<li class="step-item">
+							<div class="step-num">3</div>
+							<div class="step-body">
+								<h5>Enter Host Tailscale IP</h5>
+								<p>Type the host's <code>100.x.y.z</code> address into the <strong>Server Address</strong> box. Keep port at <code>8888</code>.</p>
+							</div>
+						</li>
+
+						<li class="step-item">
+							<div class="step-num">4</div>
+							<div class="step-body">
+								<h5>Select Name/Color &amp; Click Play</h5>
+								<p>Pick your battle username and avatar color (Red, Blue, Green, Gold, etc.). Press <strong>Play</strong> or hit <kbd class="key-cap">ENTER</kbd> to drop into the 3D deathmatch arena!</p>
+							</div>
+						</li>
+					</ol>
+				</div>
+			</div>
+		</section>
+
+		<!-- Interactive Room Generator & Config Helper (God Level Tool) -->
+		<section id="generator">
+			<div class="section-header">
+				<span class="section-tag">// INTERACTIVE UTILITY</span>
+				<h2 class="section-title">Host Room &amp; Match Invite Generator</h2>
+				<p class="section-desc">Type your Tailscale IP below to generate ready-to-paste instructions for your friends.</p>
+			</div>
+
+			<div class="tool-section">
+				<div class="tool-grid">
+					<!-- Input controls -->
+					<div>
+						<div class="input-group">
+							<label class="input-label" for="host-ip-input">Your Tailscale IPv4 Address</label>
+							<input type="text" id="host-ip-input" class="cyber-input" placeholder="e.g. 100.121.132.98" value="100.121.132.98" oninput="updateInvitePreview()">
+						</div>
+
+						<div class="input-group">
+							<label class="input-label" for="port-input">Game Port</label>
+							<input type="text" id="port-input" class="cyber-input" value="8888" readonly style="opacity: 0.8;">
+						</div>
+
+						<div class="input-group">
+							<label class="input-label" for="match-name-input">Match Title / Server Note</label>
+							<input type="text" id="match-name-input" class="cyber-input" placeholder="e.g. Friday Night Fragfest" value="Fragfest Arena #1" oninput="updateInvitePreview()">
+						</div>
+
+						<div style="display: flex; gap: 10px; margin-top: 10px;">
+							<button class="btn-primary" onclick="copyInviteCard()" style="font-size: 0.9rem; padding: 12px 22px;">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+								<span id="copy-invite-btn-text">Copy Full Invite Message</span>
+							</button>
+						</div>
+					</div>
+
+					<!-- Live Preview Box -->
+					<div>
+						<div class="preview-card">
+							<div class="preview-title">
+								<span>Live Generated Card Preview</span>
+								<span style="color: var(--emerald);">● READY TO SEND</span>
+							</div>
+							<pre class="preview-text" id="invite-preview-box"></pre>
+							<div style="display:flex; justify-content:space-between; align-items:center;">
+								<span style="font-size:0.75rem; color:var(--text-dim); font-family:var(--font-mono);">Click to copy test ping command:</span>
+								<button class="copy-btn" id="ping-cmd-btn" onclick="copyPingCommand()">
+									tailscale ping &lt;ip&gt;
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- Pre-Flight Match Readiness Checklist -->
+		<section id="checklist">
+			<div class="section-header">
+				<span class="section-tag">// PRE-FLIGHT VERIFICATION</span>
+				<h2 class="section-title">Pre-Flight Readiness Checklist</h2>
+				<p class="section-desc">Click each item below as you set up. Ensure all 6 checks are green before dropping into combat.</p>
+			</div>
+
+			<div class="checklist-container">
+				<div class="progress-bar-wrap">
+					<div class="progress-info">
+						<span style="color: #fff; font-weight: 700;">SYSTEM READINESS</span>
+						<span id="readiness-score" style="color: var(--cyan); font-weight: 700;">0 / 6 COMPLETED</span>
+					</div>
+					<div class="progress-track">
+						<div class="progress-fill" id="progress-bar"></div>
+					</div>
+				</div>
+
+				<div class="checklist-grid">
+					<div class="check-item" onclick="toggleCheck(this)">
+						<div class="custom-checkbox">
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#050811" stroke-width="3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+						</div>
+						<div class="check-label">Tailscale installed &amp; connected on Host machine</div>
+					</div>
+
+					<div class="check-item" onclick="toggleCheck(this)">
+						<div class="custom-checkbox">
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#050811" stroke-width="3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+						</div>
+						<div class="check-label">Tailscale installed &amp; connected on Client machine(s)</div>
+					</div>
+
+					<div class="check-item" onclick="toggleCheck(this)">
+						<div class="custom-checkbox">
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#050811" stroke-width="3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+						</div>
+						<div class="check-label">Invite accepted (both computers visible on tailnet)</div>
+					</div>
+
+					<div class="check-item" onclick="toggleCheck(this)">
+						<div class="custom-checkbox">
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#050811" stroke-width="3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+						</div>
+						<div class="check-label">Host started <code>play/server.exe</code> (port 8888 listening)</div>
+					</div>
+
+					<div class="check-item" onclick="toggleCheck(this)">
+						<div class="custom-checkbox">
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#050811" stroke-width="3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+						</div>
+						<div class="check-label">Windows Firewall allows Python/Server on private network</div>
+					</div>
+
+					<div class="check-item" onclick="toggleCheck(this)">
+						<div class="custom-checkbox">
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#050811" stroke-width="3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+						</div>
+						<div class="check-label">Player launched <code>play/client.exe</code> with host's 100.x.y.z IP</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- Controls & Combat HUD Card -->
+		<section id="controls">
+			<div class="section-header">
+				<span class="section-tag">// ARENA COMBAT HUD</span>
+				<h2 class="section-title">Controls &amp; Game Mechanics</h2>
+				<p class="section-desc">Master first-person movements, rapid TCP bullet firing, and quick respawns.</p>
+			</div>
+
+			<div class="controls-grid">
+				<div class="hud-card">
+					<h3 style="font-family: var(--font-display); font-size: 1.3rem; margin-bottom: 20px;">Keybindings &amp; Navigation</h3>
+					
+					<div class="key-bind-list">
+						<div class="key-bind-item">
+							<span class="key-action">Move / Strafe</span>
+							<div style="display:flex; gap:4px;">
+								<span class="key-cap">W</span>
+								<span class="key-cap">A</span>
+								<span class="key-cap">S</span>
+								<span class="key-cap">D</span>
+							</div>
+						</div>
+
+						<div class="key-bind-item">
+							<span class="key-action">Aim &amp; 360° Look</span>
+							<span class="key-cap">MOUSE</span>
+						</div>
+
+						<div class="key-bind-item">
+							<span class="key-action">Primary Fire (Bullet)</span>
+							<span class="key-cap">LEFT CLICK</span>
+						</div>
+
+						<div class="key-bind-item">
+							<span class="key-action">Jump / Obstacles</span>
+							<span class="key-cap">SPACE</span>
+						</div>
+
+						<div class="key-bind-item">
+							<span class="key-action">Respawn on Death</span>
+							<div style="display:flex; gap:4px;">
+								<span class="key-cap">R</span>
+								<span class="key-cap">ENTER</span>
+							</div>
+						</div>
+
+						<div class="key-bind-item">
+							<span class="key-action">Exit / Free Cursor</span>
+							<span class="key-cap">ESC</span>
+						</div>
+					</div>
+				</div>
+
+				<!-- Combat Parameters -->
+				<div class="hud-card">
+					<h3 style="font-family: var(--font-display); font-size: 1.3rem; margin-bottom: 12px;">Arena Rules &amp; Palette</h3>
+					<p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 16px;">
+						Each player spawns with <strong>250 Health</strong>. Collisions with enemy bullets deplete health with real-time TCP broadcast. Dying prompts an instant respawn screen.
+					</p>
+
+					<div style="margin-bottom: 18px;">
+						<span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-dim); text-transform:uppercase;">Selectable Colors (12 Skins):</span>
+						<div class="colors-palette">
+							<div class="color-chip" style="background:#ef4444;" title="Red"></div>
+							<div class="color-chip" style="background:#3b82f6;" title="Blue"></div>
+							<div class="color-chip" style="background:#10b981;" title="Green"></div>
+							<div class="color-chip" style="background:#eab308;" title="Yellow"></div>
+							<div class="color-chip" style="background:#ec4899;" title="Magenta"></div>
+							<div class="color-chip" style="background:#06b6d4;" title="Cyan"></div>
+							<div class="color-chip" style="background:#f97316;" title="Orange"></div>
+							<div class="color-chip" style="background:#84cc16;" title="Lime"></div>
+							<div class="color-chip" style="background:#8b5cf6;" title="Purple"></div>
+							<div class="color-chip" style="background:#f8fafc;" title="White"></div>
+							<div class="color-chip" style="background:#f472b6;" title="Pink"></div>
+							<div class="color-chip" style="background:#fbbf24;" title="Gold"></div>
+						</div>
+					</div>
+
+					<div style="background:rgba(0,0,0,0.3); padding:14px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); font-size:0.84rem; color:var(--text-muted);">
+						💡 <strong>Pro-Tip:</strong> The client connection window automatically attempts to auto-detect your Tailscale IP and pre-populates the dropdown if Tailscale is running on your machine!
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- Troubleshooting & Diagnostic Matrix -->
+		<section id="troubleshoot">
+			<div class="section-header">
+				<span class="section-tag">// DIAGNOSTICS &amp; REPAIR</span>
+				<h2 class="section-title">Troubleshooting &amp; Fixes</h2>
+				<p class="section-desc">Quick solutions to common connection, firewall, and peer handshake roadblocks.</p>
+			</div>
+
+			<!-- Useful Terminal Commands -->
+			<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; margin-bottom: 24px;">
+				<div class="download-box" style="padding: 16px;">
+					<span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--cyan); display:block; margin-bottom:6px;">FIND YOUR TAILSCALE IP</span>
+					<div class="cli-install-box" style="margin-top:0;">
+						<code>tailscale ip -4</code>
+						<button class="copy-btn" onclick="copySnippet(this, 'tailscale ip -4')">Copy</button>
+					</div>
+				</div>
+
+				<div class="download-box" style="padding: 16px;">
+					<span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--emerald); display:block; margin-bottom:6px;">CHECK ONLINE PEERS</span>
+					<div class="cli-install-box" style="margin-top:0;">
+						<code>tailscale status</code>
+						<button class="copy-btn" onclick="copySnippet(this, 'tailscale status')">Copy</button>
+					</div>
+				</div>
+
+				<div class="download-box" style="padding: 16px;">
+					<span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--purple); display:block; margin-bottom:6px;">ALLOW TCP PORT 8888</span>
+					<div class="cli-install-box" style="margin-top:0;">
+						<code>netstat -ano | findstr :8888</code>
+						<button class="copy-btn" onclick="copySnippet(this, 'netstat -ano | findstr :8888')">Copy</button>
+					</div>
+				</div>
+			</div>
+
+			<div class="accordion-group">
+				<div class="accordion-item active">
+					<button class="accordion-trigger" onclick="toggleAccordion(this)">
+						<span>Client says "Connection Refused" or fails to connect</span>
+						<svg class="accordion-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+					</button>
+					<div class="accordion-content">
+						<ol style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
+							<li>Verify that <code>server.exe</code> is already running on the host machine <em>before</em> the player clicks <strong>Play</strong>.</li>
+							<li>Double-check that the IP entered into the client begins with <code>100.</code> (e.g. <code>100.121.132.98</code>), not <code>192.168.x.x</code> or <code>127.0.0.1</code> unless testing locally on the same PC.</li>
+							<li>Verify port <code>8888</code> is specified without spaces or typos.</li>
+						</ol>
+					</div>
+				</div>
+
+				<div class="accordion-item">
+					<button class="accordion-trigger" onclick="toggleAccordion(this)">
+						<span>Ping times out between devices</span>
+						<svg class="accordion-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+					</button>
+					<div class="accordion-content">
+						<p>Run <code>tailscale ping &lt;host-tailscale-ip&gt;</code> in PowerShell or Terminal. If packets drop:</p>
+						<ul style="padding-left: 20px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+							<li>Check the Tailscale tray icon on both machines; both must display <strong>Connected</strong>.</li>
+							<li>If using node sharing, confirm in the Tailscale admin console that the guest accepted the invite.</li>
+							<li>Temporarily disable third-party antivirus firewalls that may block virtual network adapters.</li>
+						</ul>
+					</div>
+				</div>
+
+				<div class="accordion-item">
+					<button class="accordion-trigger" onclick="toggleAccordion(this)">
+						<span>Windows Firewall rule (PowerShell 1-Liner)</span>
+						<svg class="accordion-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+					</button>
+					<div class="accordion-content">
+						<p>If Windows blocks inbound connections on port 8888, open <strong>PowerShell as Administrator</strong> and run:</p>
+						<div class="cli-install-box" style="margin-top: 10px;">
+							<code>New-NetFirewallRule -DisplayName "Ursina TCP 8888" -Direction Inbound -LocalPort 8888 -Protocol TCP -Action Allow</code>
+							<button class="copy-btn" onclick="copySnippet(this, 'New-NetFirewallRule -DisplayName \&quot;Ursina TCP 8888\&quot; -Direction Inbound -LocalPort 8888 -Protocol TCP -Action Allow')">Copy</button>
+						</div>
+					</div>
+				</div>
+
+				<div class="accordion-item">
+					<button class="accordion-trigger" onclick="toggleAccordion(this)">
+						<span>How to play on the same home Wi-Fi (No Tailscale required)</span>
+						<svg class="accordion-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+					</button>
+					<div class="accordion-content">
+						<p>If all computers are plugged into or connected to the exact same home router Wi-Fi:</p>
+						<ul style="padding-left: 20px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+							<li>The host starts <code>server.exe</code> and notes the <strong>Local LAN IP</strong> (e.g. <code>192.168.1.5</code>).</li>
+							<li>Players enter that <code>192.168.x.x</code> address into <code>client.exe</code> and click <strong>Play</strong>.</li>
+							<li>Ensure Windows Firewall is set to "Private Network" on all machines.</li>
+						</ul>
+					</div>
+				</div>
+
+				<div class="accordion-item">
+					<button class="accordion-trigger" onclick="toggleAccordion(this)">
+						<span>Solo / Offline practice test (Single PC)</span>
+						<svg class="accordion-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+					</button>
+					<div class="accordion-content">
+						<p>To test weapons, movement, and map geometry alone on one computer:</p>
+						<ol style="padding-left: 20px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+							<li>Run <code>play/server.exe</code>.</li>
+							<li>Run <code>play/client.exe</code>.</li>
+							<li>Type <code>127.0.0.1</code> as the server address, port <code>8888</code>, and click <strong>Play</strong>. You can even open two client windows to simulate a 2-player match!</li>
+						</ol>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<!-- Footer -->
+	<footer>
+		<div class="container footer-grid">
+			<div>
+				<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; color:#fff; font-family:var(--font-display); font-weight:700;">
+					<span>URSINA TCP DEATHMATCH</span>
+					<span class="brand-tag">v1.0 STANDALONE</span>
+				</div>
+				<p>Built with Ursina 3D Engine &amp; Python TCP Sockets. Zero port forwarding required over Tailscale mesh.</p>
+			</div>
+
+			<div class="footer-links">
+				<a href="https://tailscale.com/download" target="_blank" rel="noopener">Tailscale Hub</a>
+				<a href="https://login.tailscale.com/admin/machines" target="_blank" rel="noopener">Admin Console</a>
+				<a href="https://github.com/imvickykumar999/Ursina-TCP-Deathmatch" target="_blank" rel="noopener">GitHub Repository</a>
+				<a href="#top">Back to Top ↑</a>
+			</div>
+		</div>
+	</footer>
+
+	<!-- Scripts for Interactive Elements -->
+	<script>
+		// Platform tabs switcher
+		function switchPlatform(platformId, tabElement) {
+			document.querySelectorAll('.platform-tab').forEach(t => {
+				t.classList.remove('active');
+				t.setAttribute('aria-selected', 'false');
+			});
+			document.querySelectorAll('.platform-content').forEach(c => c.classList.remove('active'));
+
+			tabElement.classList.add('active');
+			tabElement.setAttribute('aria-selected', 'true');
+			const content = document.getElementById('platform-' + platformId);
+			if (content) content.classList.add('active');
+		}
+
+		// Generic copy snippet helper
+		function copySnippet(btn, text) {
+			navigator.clipboard.writeText(text).then(() => {
+				const originalText = btn.innerHTML;
+				btn.classList.add('copied');
+				btn.innerText = 'Copied! ✓';
+				setTimeout(() => {
+					btn.classList.remove('copied');
+					btn.innerHTML = originalText;
+				}, 2200);
+			}).catch(err => {
+				console.error('Clipboard copy failed:', err);
+			});
+		}
+
+		// Accordion toggle
+		function toggleAccordion(btn) {
+			const item = btn.closest('.accordion-item');
+			item.classList.toggle('active');
+		}
+
+		// Pre-flight readiness checklist interactive counter
+		function toggleCheck(item) {
+			item.classList.toggle('checked');
+			updateProgress();
+		}
+
+		function updateProgress() {
+			const items = document.querySelectorAll('.check-item');
+			const total = items.length;
+			let checkedCount = 0;
+			items.forEach(i => {
+				if (i.classList.contains('checked')) checkedCount++;
+			});
+
+			const percentage = Math.round((checkedCount / total) * 100);
+			const bar = document.getElementById('progress-bar');
+			const score = document.getElementById('readiness-score');
+
+			bar.style.width = percentage + '%';
+			if (checkedCount === total) {
+				score.innerHTML = 'READY FOR COMBAT! 🚀';
+				score.style.color = 'var(--emerald)';
+			} else {
+				score.innerHTML = `${checkedCount} / ${total} COMPLETED`;
+				score.style.color = 'var(--cyan)';
+			}
+		}
+
+		// Live Room Invite Card Generator
+		function updateInvitePreview() {
+			const ip = document.getElementById('host-ip-input').value.trim() || '100.x.y.z';
+			const port = document.getElementById('port-input').value.trim() || '8888';
+			const title = document.getElementById('match-name-input').value.trim() || 'Deathmatch Arena';
+
+			const message = `🎮 URSINA TCP DEATHMATCH ROOM
+═════════════════════════════════
+Match: ${title}
+Host Tailscale IP: ${ip}
+Port: ${port}
+Protocol: TCP (Direct WireGuard P2P)
+
+HOW TO JOIN:
+1. Connect Tailscale: https://tailscale.com/download
+2. Launch "play/client.exe"
+3. Enter Address: ${ip}
+4. Select your name/color & click PLAY!
+═════════════════════════════════`;
+
+			document.getElementById('invite-preview-box').textContent = message;
+			
+			const pingBtn = document.getElementById('ping-cmd-btn');
+			if (pingBtn) {
+				pingBtn.setAttribute('onclick', `copySnippet(this, 'tailscale ping ${ip}')`);
+				pingBtn.textContent = `tailscale ping ${ip}`;
+			}
+		}
+
+		function copyPingCommand() {
+			const ip = document.getElementById('host-ip-input').value.trim() || '100.x.y.z';
+			copySnippet(document.getElementById('ping-cmd-btn'), `tailscale ping ${ip}`);
+		}
+
+		function copyInviteCard() {
+			const text = document.getElementById('invite-preview-box').textContent;
+			const btn = document.getElementById('copy-invite-btn-text');
+			navigator.clipboard.writeText(text).then(() => {
+				const orig = btn.textContent;
+				btn.textContent = 'Invite Copied to Clipboard! ✨';
+				setTimeout(() => {
+					btn.textContent = orig;
+				}, 2500);
+			});
+		}
+
+		// Initialize on load
+		document.addEventListener('DOMContentLoaded', () => {
+			updateInvitePreview();
+			updateProgress();
+		});
+	</script>
+</body>
+</html>
