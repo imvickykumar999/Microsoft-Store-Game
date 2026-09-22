@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+         xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+         IgnorableNamespaces="uap rescap">
+  <Identity Name="Warzone3D.DeathMatch3D" Publisher="CN=C95A75C2-6F75-4B0C-859F-AC1ABCFA2506" Version="1.0.0.0" />
+  <Properties>
+    <DisplayName>DeathMatch3D</DisplayName>
+    <PublisherDisplayName>Warzone3D</PublisherDisplayName>
+    <Description>Deathmatch 3D multiplayer FPS</Description>
+    <Logo>logo.png</Logo>
+  </Properties>
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Applications>
+        <Application Id="Warzone3D" Executable="client.exe" EntryPoint="Windows.FullTrustApplication">
+            <uap:VisualElements AppListEntry="default" DisplayName="DeathMatch3D" Description="Deathmatch 3D multiplayer FPS" BackgroundColor="#111111" Square150x150Logo="logo.png" Square44x44Logo="logo.png" />
+    </Application>
+  </Applications>
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <Capability Name="privateNetworkClientServer" />
+        <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
