@@ -1,0 +1,17 @@
+App name:
+Deathmatch 3D
+
+Short description:
+A fast-paced 3D multiplayer deathmatch FPS game with cross-platform action.
+
+Full description:
+Experience Warzone3D (Deathmatch 3D), a fast-paced multiplayer FPS built for smooth, real-time action! Battle against players online or test your combat skills in local LAN matches. Pick up weapons, track down opponents in a 3D arena, and compete for top frags.
+
+Features:
+- Fast-paced 3D multiplayer FPS gameplay.
+- Online TCP server support for low latency multiplayer.
+- Cross-platform lobbies: Play seamlessly across PC and Mobile devices.
+- Lightweight, optimized performance and simple controls.
+- Local network (LAN) and offline play support.
+
+Jump into the lobby and join the battle today!
